@@ -7,9 +7,10 @@
 #include <ESP8266WiFi.h>
 #include <Fonts/FreeMono9pt7b.h>
 
+bool const debug = true;
 
 // Variables for the blinking microscope 
-bool const microscope = true;
+bool const microscope = false;
 const byte green_LED = D5;
 int green_LED_state = LOW; 
 const byte red_LED = D6;
@@ -17,7 +18,7 @@ int red_LED_state = LOW;
 
 unsigned long green_previous_millis = 0;
 unsigned long red_previous_millis = 0;
-const long interval = 1000;
+const long interval = 3000;
 
 // Variables for the WB chamber
 bool const chamber = true;
@@ -164,6 +165,14 @@ const unsigned char bitmap_giuacchi [] PROGMEM = {
 
 void setup() {
 
+  if (debug) {
+    Serial.begin(115200);
+  }
+
+  // New random seed each iteration of the sketch
+  randomSeed(analogRead(0));
+
+
   // Turn off Wifi to save battery
   WiFi.mode(WIFI_OFF);
 
@@ -176,11 +185,7 @@ void setup() {
   display.setRotation(2);
   display.setFont(&FreeMono9pt7b);
   display.display();
-  delay(2000); // Pause for 2 seconds
-  display.clearDisplay();
-    display.drawPixel(10, 10, WHITE);  
-    display.display();
-  delay(2000);
+  delay(1000);
 
 
 }
@@ -205,7 +210,7 @@ void loop() {
     }
   
     // Shift the red blinker to after the green one
-    delay(3000);
+    delay(interval);
   
     // Start delayed red blinker
     if (red_current_millis - red_previous_millis >= interval) {
@@ -218,19 +223,26 @@ void loop() {
       digitalWrite(red_LED, red_LED_state);
     }
     
+    delay(interval);
+    
   }
 
-  // draw_rectangle(20);
-  draw_text_static("Cazzo!");
-  delay(1000);
-  draw_text_static("Coffice!?");
-  delay(1000);
-  draw_bitmap(bitmap_hand);
-  delay(1000);
-  draw_text_static("WALLERA");
-  delay(1000);
-  draw_bitmap(bitmap_giuacchi);
-  delay(1000);
+  if (chamber) {
+
+    draw_gel();
+ 
+  }
+
+
+  //draw_text_static("Cazzo!");
+  //delay(1000);
+  //draw_text_static("Coffice!?");
+  //delay(1000);
+  //draw_bitmap(bitmap_hand);
+  //delay(1000);
+  //draw_text_static("WALLERA");
+  //delay(1000);
+  //draw_bitmap(bitmap_giuacchi);
 
 }
 
@@ -275,4 +287,64 @@ void draw_bitmap(const uint8_t *bitmap) {
   display.drawBitmap(0, 0, bitmap, 128, 64, WHITE);
   display.display();
   
+}
+
+void draw_gel(void) {
+
+  int x_min = 8;
+  int w_max = 110;
+  int y_min = 3;
+  int h_max = 59;
+
+  int n_lanes = 4;
+  int lane_thickness = 5;
+  int lane_padding = 5;
+  float lane_width = (float) (((w_max - x_min) - (n_lanes-1) * lane_padding) / n_lanes);
+
+  // Generate random bands for each lane
+  int bands[n_lanes][h_max+10];
+  for (int i = 0; i < n_lanes; i++) {
+    for (int j = 1; j <= (h_max+10); j = j+3) {
+      int tmp = random(20);
+      if (tmp == 0) {
+        bands[i][j] = 0;
+      }
+    }
+  }
+  
+    
+  // Draw front
+  for (int j = 1; j <= h_max; j++) {
+    display.clearDisplay();
+    for (int i = 1; i <= n_lanes; i++) {
+      
+      display.drawRect(round(x_min + lane_padding + (lane_width + lane_padding) * (i-1)), 
+                       y_min + lane_padding, 
+                       round(lane_width), 
+                       lane_thickness, WHITE);
+      
+    }
+    for (int i = 1; i <= n_lanes; i++) {
+      
+      display.fillRect(round(x_min + lane_padding + (lane_width + lane_padding) * (i-1)), 
+                       y_min + lane_padding + j, 
+                       round(lane_width), 
+                       lane_thickness, WHITE);
+      
+    }
+    for (int i = 1; i <= n_lanes; i++) {
+      for (int k = 1; k <= j; k++) {
+        if (bands[i][k] == 0) {
+          display.fillRect(round(x_min + lane_padding + (lane_width + lane_padding) * (i-1)), 
+                 y_min + lane_padding + k, 
+                 round(lane_width), 
+                 lane_thickness-2, WHITE);
+        }
+      }
+    }
+    
+    display.display();
+    delay(200);
+  }
+
 }
